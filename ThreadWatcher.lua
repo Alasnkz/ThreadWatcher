@@ -183,8 +183,14 @@ startButton:SetPoint("BOTTOMLEFT", 10, 10)
 startButton:SetSize(80, 30)
 startButton:SetText("Start")
 startButton:SetScript("OnClick", function()
-    timerActive = true
-    elapsedTime = 0
+    if timerActive == false then 
+        timerActive = true
+        startButton:SetText("Pause")
+    else
+        timerActive = false
+        startButton:SetText("Resume")
+    end
+    
 end)
 
 local stopButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
@@ -239,6 +245,12 @@ stopButton:SetScript("OnClick", function()
     local minutes = math.floor((elapsedTime / 60) % 60) + math.floor(elapsedTime / 3600) * 60 + math.floor(elapsedTime % 60 / 60)
     local threads_per_min = total_threads / minutes
     print(string.format("ThreadWatcher: You gained |cFF00FF00%0.2f|r stat upgrades or |cFF00FF00%0.2f|r thread drops every minute!", threads_per_min, item_drops))
+    
+    timerActive = false
+    lootList = {}
+    UpdateLootDisplay()
+    elapsedTime = 0
+    startButton:SetText("Start")
 end)
 
 local info_text = frame:CreateFontString("nil", "OVERLAY", "GameTooltipText")
@@ -280,7 +292,6 @@ local function eventHandler(self, event, ...)
         for i, thread in pairs(Threads) do 
             for thread_table_name, thread_table in pairs(thread) do
                 if thread_table.currency_id == currencyType and thread_table.thread_count == quantityChange then
-                    print("thread id = " .. thread_table.thread_id)
                     local item = Item:CreateFromItemID(thread_table.thread_id)
 
                     item:ContinueOnItemLoad(function()

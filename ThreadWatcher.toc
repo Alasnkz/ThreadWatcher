@@ -1,6 +1,6 @@
 ## Interface: 100207
 ## Title: Thread Watcher
 ## Notes: Let's you time your thread drops.
-## Version: 1.0.0
+## Version: 1.0.1
 
 ThreadWatcher.lua
