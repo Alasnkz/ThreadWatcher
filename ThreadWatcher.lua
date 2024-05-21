@@ -1,4 +1,4 @@
-ThreadWatcher = {}
+local ThreadWatcher = LibStub("AceAddon-3.0"):NewAddon("ThreadWatcher", "AceConsole-3.0")  
 
 Threads =
 {
@@ -211,6 +211,30 @@ startButton:SetScript("OnClick", function()
     
 end)
 
+function TimeToString(elapsedTime)
+    local seconds = math.floor(elapsedTime % 60)
+    local minutes = math.floor((elapsedTime / 60) % 60)
+    local hours = math.floor(elapsedTime / 3600)
+    
+    local timeParts = {}
+    
+    if hours > 0 then
+        table.insert(timeParts, string.format("%d hour%s", hours, hours ~= 1 and "s" or ""))
+    end
+    
+    if minutes > 0 then
+        table.insert(timeParts, string.format("%d minute%s", minutes, minutes ~= 1 and "s" or ""))
+    end
+    
+    if seconds > 0 then
+        table.insert(timeParts, string.format("%d second%s", seconds, seconds ~= 1 and "s" or ""))
+    end
+    
+    local formattedTime = table.concat(timeParts, ", ")
+    
+    return formattedTime
+end
+
 function DumpThreadResults() 
     local most_threads = 0
     local total_threads = 0
@@ -249,33 +273,32 @@ function DumpThreadResults()
     local minutes = math.floor((elapsedTime / 60) % 60)
     local hours = math.floor(elapsedTime / 3600)
     local minutes_conv = math.floor((elapsedTime / 60) % 60) + math.floor(elapsedTime / 3600) * 60 + math.floor(elapsedTime % 60 / 60)
-    local item_drops = item_count / minutes
+    
 
     if bronze ~= 0 then
-        print(string.format("ThreadWatcher: You have gained |cFF00FF00%i|r bronze in |cFFFFFF00%02d:%02d:%02d|r!", bronze, hours, minutes, seconds))
-        print(string.format("ThreadWatcher: That's |cFF00FF00%0.2f|r bronze every minute!", bronze / minutes_conv))
+        ThreadWatcher:Print(string.format("You have gained |cFF00FF00%i|r bronze in |cFFFFFF00%s|r!", bronze, TimeToString(elapsedTime)))
+        if minutes > 0 or hours > 0 then
+            ThreadWatcher:Print(string.format("That's |cFF00FF00%0.2f|r bronze every minute!", bronze / minutes_conv))
+        else
+            ThreadWatcher:Print(string.format("That's |cFF00FF00%0.2f|r bronze every second!", bronze / seconds))
+        end
     end
 
     if total_threads > 0 and most_item_link ~= "" then
-        print(string.format("ThreadWatcher: You have gained |cFF00FF00%i|r stat upgrades in |cFFFFFF00%02d:%02d:%02d|r!", total_threads, hours, minutes, seconds))
-        print(string.format("ThreadWatcher: Your most common thread drop was %s for |cFF00FF00%i|r stat upgrades!", most_item_link, most_threads))
-        local threads_per_min = total_threads / minutes_conv
-        print(string.format("ThreadWatcher: You gained |cFF00FF00%0.2f|r stat upgrades or |cFF00FF00%0.2f|r thread drops every minute!", threads_per_min, item_drops))
+        ThreadWatcher:Print(string.format("You have gained |cFF00FF00%i|r stat upgrades in |cFFFFFF00%s|r!", total_threads, TimeToString(elapsedTime)))
+        ThreadWatcher:Print(string.format("Your most common thread drop was %s for |cFF00FF00%i|r stat upgrades!", most_item_link, most_threads))
+        
+        if minutes > 0 or hours > 0 then
+            local threads_per_min = total_threads / minutes_conv
+            local item_drops = item_count / minutes_conv
+            ThreadWatcher:Print(string.format("You gained |cFF00FF00%0.2f|r stat upgrades or |cFF00FF00%0.2f|r thread drops every minute!", threads_per_min, item_drops))
+        else
+            local threads_per_sec = total_threads / seconds
+            local item_drops = item_count / seconds
+            ThreadWatcher:Print(string.format("You gained |cFF00FF00%0.2f|r stat upgrades or |cFF00FF00%0.2f|r thread drops every second!", threads_per_sec, item_drops))
+        end
     end
 end
-
-local stopButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-stopButton:SetPoint("BOTTOMRIGHT", -10, 10)
-stopButton:SetSize(80, 30)
-stopButton:SetText("Stop")
-stopButton:SetScript("OnClick", function()
-    timerActive = false 
-    startButton:SetText("Start")
-    DumpThreadResults()
-    elapsedTime = 0
-    lootList = {}
-    UpdateLootDisplay()
-end)
 
 local dump_button = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
 dump_button:SetPoint("BOTTOM", -10, 10)
@@ -289,6 +312,26 @@ local timerText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge
 timerText:SetPoint("TOP", frame, "TOP", 0, -5)
 timerText:SetText("00:00:00")
 
+local optionsButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+optionsButton:SetPoint("TOPRIGHT", -25, -1)
+optionsButton:SetSize(64, 20)
+optionsButton:SetText("Options")
+optionsButton:SetScript("OnClick", function()
+    InterfaceOptionsFrame_OpenToCategory("ThreadWatcher")
+end)
+local stopButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+stopButton:SetPoint("BOTTOMRIGHT", -10, 10)
+stopButton:SetSize(80, 30)
+stopButton:SetText("Stop")
+stopButton:SetScript("OnClick", function()
+    timerActive = false 
+    startButton:SetText("Start")
+    DumpThreadResults()
+    elapsedTime = 0
+    lootList = {}
+    UpdateLootDisplay()
+    timerText:SetText("00:00:00")
+end)
 
 local function UpdateTimerDisplay(elapsedTime)
     local seconds = math.floor(elapsedTime % 60)
@@ -306,17 +349,23 @@ end
 
 local timer_frame = CreateFrame("Frame")
 timer_frame:SetScript("OnUpdate", OnUpdate)
-SLASH_THREADWATCHER1 = "/threadwatcher"
-SlashCmdList["THREADWATCHER"] = function()
+
+First_open = true
+function ThreadWatcher:ThreadCommand()
+    if First_open == true then
+        timerActive = true
+        self:Print("Session started.")
+    end
     if frame:IsShown() then
         frame:Hide()
     else
         frame:Show()
     end
+    First_open = false
 end
 
 local function eventHandler(self, event, ...) 
-    if event == "CURRENCY_DISPLAY_UPDATE" then 
+    if event == "CURRENCY_DISPLAY_UPDATE" and timerActive == true then 
         local currencyType, quantity, quantityChange, quantityGainSource, quantityLostSource = ...;
         for i, thread in pairs(Threads) do 
             for thread_table_name, thread_table in pairs(thread) do
@@ -331,11 +380,70 @@ local function eventHandler(self, event, ...)
             end
         end
     end
-    if event == "PLAYER_ENTERING_WORLD" then
-        local login, reload = ...;
-        if login and reload ~= false then
-            print("ThreadWatcher: ThreadWatcher loaded! Use /threadwatcher to open the window.")
-        end
-    end
 end
 event_frame:SetScript("OnEvent", eventHandler)
+
+local threadwatcherStub = LibStub("LibDataBroker-1.1"):NewDataObject("ThreadWatcher", {  
+	type = "launcher",  
+	text = "ThreadWatcher",  
+	icon = "Interface\\Icons\\inv_10_tailoring_embroiderythread_color1",  
+	OnClick = function()
+        ThreadWatcher:ThreadCommand()
+    end,
+    OnTooltipShow = function (tooltip)
+        tooltip:AddLine("ThreadWatcher")
+        tooltip:AddLine("|cFFFFFF00Click|r to open the window")        
+        if timerActive ~= false then
+            local seconds = math.floor(elapsedTime % 60)
+            local minutes = math.floor((elapsedTime / 60) % 60)
+            local hours = math.floor(elapsedTime / 3600)
+            tooltip:AddLine(string.format("Session running for %02d:%02d:%02d", hours, minutes, seconds))
+        end
+    end,  
+})  
+local icon = LibStub("LibDBIcon-1.0")  
+
+local options = { 
+	name = "ThreadWatcher",
+	handler = ThreadWatcher,
+	type = "group",
+	args = {
+		msg = {
+			type = "toggle",
+			name = "Session startup",
+			desc = "Run a session on addon startup straight away.",
+			get = "GetSessionStartup",
+			set = "SetSessionStartup",
+		},
+	},
+}
+
+function ThreadWatcher:OnInitialize()
+    self.db = LibStub("AceDB-3.0"):New("ThreadWatcherDB", {
+		profile = {
+			minimap = {
+				hide = false,
+			},
+            start_on_launch = false
+		},
+	})
+	icon:Register("ThreadWatcher", threadwatcherStub, self.db.profile.minimap)
+    LibStub("AceConfig-3.0"):RegisterOptionsTable("ThreadWatcher", options)
+    self.optionsFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ThreadWatcher", "ThreadWatcher")
+    self:RegisterChatCommand("threadwatcher", "ThreadCommand")
+
+    self:Print("ThreadWatcher loaded! Use the minimap icon or |cFFFFFF00/threadwatcher|r to open the ThreadWatcher window!")
+    if self.db.profile.start_on_launch == true then
+        self:Print("Starting session.")
+        timerActive = true
+        startButton:SetText("Pause")
+    end
+end
+
+function ThreadWatcher:GetSessionStartup(info)
+    return self.db.profile.start_on_launch
+end
+
+function ThreadWatcher:SetSessionStartup(info, value)
+    self.db.profile.start_on_launch = value
+end
