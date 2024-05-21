@@ -64,6 +64,10 @@ Threads =
         { currency_id = 2860, stat_name = "versatility", thread_id = 219263, thread_name = "Temporal Thread of Versatility", thread_count = 3 },
         { currency_id = 2860, stat_name = "versatility", thread_id = 219272, thread_name = "Perpetual Thread of Versatility", thread_count = 7 },
         { currency_id = 2860, stat_name = "versatility", thread_id = 219281, thread_name = "Infinite Thread of Versatility", thread_count = 12 }
+    },
+
+    bronze = {
+        { currency_id = 2778, stat_name = "Bronze", thread_id = 217174, thread_name = "Bronze", thread_count = -1 }
     }
 }
 local event_frame = CreateFrame("EventFrame", "ThreadWatcher")
@@ -72,8 +76,8 @@ event_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 event_frame:RegisterEvent("ADDON_LOADED")
 
 local frame = CreateFrame("Frame", "LootFrame", UIParent, "BasicFrameTemplateWithInset")
-frame:SetSize(200, 200)
-frame:SetPoint("CENTER")
+frame:SetSize(400, 200)
+frame:SetPoint("LEFT")
 frame:SetMovable(true)
 frame:EnableMouse(true)
 frame:RegisterForDrag("LeftButton")
@@ -149,27 +153,41 @@ local function UpdateLootDisplay()
         end
 
         lootText:SetPoint("LEFT", lootButton, "LEFT", 5, 0)
-        lootText:SetText(loot.item_link .. " x" .. loot.amount .. " (+" .. loot.thread_count .. " " .. loot.stat_name .. ")")
 
+        if loot.stat_name == "Bronze" then 
+            lootText:SetText(loot.item_link .. " x" .. loot.amount)
+        else 
+            lootText:SetText(loot.item_link .. " x" .. loot.amount .. " (+" .. loot.thread_count .. " " .. loot.stat_name .. ")")
+        end
         offset = offset + 20
     end
 
     content:SetHeight(offset)
 end
 
-local function AddThread(item, item_link, thread_table)
+local function AddThread(item, item_link, thread_table, quantity)
     -- get total thread count
     -- [item] x[amount] (+thread name)
     -- example: [Thread of Stanima] x5 (+5 stanima)
     if lootList[item] == nil then
+        local inital_amount = 1
+
+        if thread_table.stat_name == "Bronze" then
+            inital_amount = quantity
+        end
         lootList[item] = {
             item_link = item_link,
             stat_name = thread_table.stat_name,
             thread_count = thread_table.thread_count,
-            amount = 1,
+            amount = inital_amount,
         }
     elseif lootList[item] ~= nil then
-        lootList[item].amount = lootList[item].amount + 1
+        local amount = 1
+
+        if thread_table.stat_name == "Bronze" then
+            amount = quantity
+        end
+        lootList[item].amount = lootList[item].amount + amount
         lootList[item].thread_count = lootList[item].thread_count + thread_table.thread_count
     end
     UpdateLootDisplay()
@@ -193,33 +211,31 @@ startButton:SetScript("OnClick", function()
     
 end)
 
-local stopButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-stopButton:SetPoint("BOTTOMRIGHT", -10, 10)
-stopButton:SetSize(80, 30)
-stopButton:SetText("Stop")
-stopButton:SetScript("OnClick", function()
-    timerActive = false
-
+function DumpThreadResults() 
     local most_threads = 0
-    local most_thread_stat = ""
     local total_threads = 0
     local thread_counts = {}
     local item_count = 0
     local most_item = 0
     local most_item_link = ""
+    local bronze = 0
     for i, loot in pairs(lootList) do
         if thread_counts[loot.stat_name] == nil then
             thread_counts[loot.stat_name] = 0
         end
         
-        thread_counts[loot.stat_name] = loot.thread_count + thread_counts[loot.stat_name]
-        total_threads = total_threads + loot.thread_count
+        if loot.stat_name ~= "Bronze" then
+            thread_counts[loot.stat_name] = loot.thread_count + thread_counts[loot.stat_name]
+            total_threads = total_threads + loot.thread_count
 
-        item_count = item_count + 1
+            item_count = item_count + 1
 
-        if most_item < loot.amount then
-            most_item = loot.amount
-            most_item_link = loot.item_link
+            if most_item < loot.amount then
+                most_item = loot.amount
+                most_item_link = loot.item_link
+            end
+        else
+            bronze = loot.amount
         end
     end
 
@@ -232,29 +248,42 @@ stopButton:SetScript("OnClick", function()
     local seconds = math.floor(elapsedTime % 60)
     local minutes = math.floor((elapsedTime / 60) % 60)
     local hours = math.floor(elapsedTime / 3600)
-    
-    
+    local minutes_conv = math.floor((elapsedTime / 60) % 60) + math.floor(elapsedTime / 3600) * 60 + math.floor(elapsedTime % 60 / 60)
     local item_drops = item_count / minutes
-    print(string.format("ThreadWatcher: You have gained |cFF00FF00%i|r stat upgrades in |cFFFFFF00%02d:%02d:%02d|r!", total_threads, hours, minutes, seconds))
 
-    
-    if total_threads > 0 and most_item_link ~= "" then
-        print(string.format("ThreadWatcher: Your most common thread drop was %s for |cFF00FF00%i|r stat upgrades!", most_item_link, most_threads))
+    if bronze ~= 0 then
+        print(string.format("ThreadWatcher: You have gained |cFF00FF00%i|r bronze in |cFFFFFF00%02d:%02d:%02d|r!", bronze, hours, minutes, seconds))
+        print(string.format("ThreadWatcher: That's |cFF00FF00%0.2f|r bronze every minute!", bronze / minutes_conv))
     end
 
-    local minutes = math.floor((elapsedTime / 60) % 60) + math.floor(elapsedTime / 3600) * 60 + math.floor(elapsedTime % 60 / 60)
-    local threads_per_min = total_threads / minutes
-    print(string.format("ThreadWatcher: You gained |cFF00FF00%0.2f|r stat upgrades or |cFF00FF00%0.2f|r thread drops every minute!", threads_per_min, item_drops))
-    
-    timerActive = false
+    if total_threads > 0 and most_item_link ~= "" then
+        print(string.format("ThreadWatcher: You have gained |cFF00FF00%i|r stat upgrades in |cFFFFFF00%02d:%02d:%02d|r!", total_threads, hours, minutes, seconds))
+        print(string.format("ThreadWatcher: Your most common thread drop was %s for |cFF00FF00%i|r stat upgrades!", most_item_link, most_threads))
+        local threads_per_min = total_threads / minutes_conv
+        print(string.format("ThreadWatcher: You gained |cFF00FF00%0.2f|r stat upgrades or |cFF00FF00%0.2f|r thread drops every minute!", threads_per_min, item_drops))
+    end
+end
+
+local stopButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+stopButton:SetPoint("BOTTOMRIGHT", -10, 10)
+stopButton:SetSize(80, 30)
+stopButton:SetText("Stop")
+stopButton:SetScript("OnClick", function()
+    timerActive = false 
+    startButton:SetText("Start")
+    DumpThreadResults()
+    elapsedTime = 0
     lootList = {}
     UpdateLootDisplay()
-    elapsedTime = 0
-    startButton:SetText("Start")
 end)
 
-local info_text = frame:CreateFontString("nil", "OVERLAY", "GameTooltipText")
-info_text:SetPoint("BOTTOM", -10, 10)
+local dump_button = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+dump_button:SetPoint("BOTTOM", -10, 10)
+dump_button:SetSize(100, 30)
+dump_button:SetText("Dump Results")
+dump_button:SetScript("OnClick", function() 
+    DumpThreadResults()
+end)
 
 local timerText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
 timerText:SetPoint("TOP", frame, "TOP", 0, -5)
@@ -291,11 +320,11 @@ local function eventHandler(self, event, ...)
         local currencyType, quantity, quantityChange, quantityGainSource, quantityLostSource = ...;
         for i, thread in pairs(Threads) do 
             for thread_table_name, thread_table in pairs(thread) do
-                if thread_table.currency_id == currencyType and thread_table.thread_count == quantityChange then
+                if thread_table.currency_id == currencyType and (thread_table.thread_count == quantityChange or thread_table.thread_count == -1) then
                     local item = Item:CreateFromItemID(thread_table.thread_id)
 
                     item:ContinueOnItemLoad(function()
-                        AddThread(thread_table.thread_id, item:GetItemLink(), thread_table)
+                        AddThread(thread_table.thread_id, item:GetItemLink(), thread_table, quantityChange)
                     end)
                     
                 end
