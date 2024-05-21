@@ -104,6 +104,7 @@ function ResumeTick()
 end
 
 function StopTick()
+    start_time = 0
     elapsed_paused_time = 0
     timer_active = false
     pause_start_time = 0
