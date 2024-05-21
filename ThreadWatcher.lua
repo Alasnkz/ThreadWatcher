@@ -1,4 +1,5 @@
 local ThreadWatcher = LibStub("AceAddon-3.0"):NewAddon("ThreadWatcher", "AceConsole-3.0")  
+local AceGUI = LibStub("AceGUI-3.0")
 
 Threads =
 {
@@ -11,10 +12,10 @@ Threads =
     },
 
     power = {
-        { currency_id = 2853, stat_name = "power", thread_id = 210982, thread_name = "Thread of Power", thread_count = 1 },
-        { currency_id = 2853, stat_name = "power", thread_id = 219256, thread_name = "Temporal Thread of Power", thread_count = 3 },
-        { currency_id = 2853, stat_name = "power", thread_id = 219265, thread_name = "Perpetual Thread of Power", thread_count = 7 },
-        { currency_id = 2853, stat_name = "power", thread_id = 219274, thread_name = "Infinite Thread of Power", thread_count = 12 }
+        { currency_id = 2853, stat_name = "main stat", thread_id = 210982, thread_name = "Thread of Power", thread_count = 1 },
+        { currency_id = 2853, stat_name = "main stat", thread_id = 219256, thread_name = "Temporal Thread of Power", thread_count = 3 },
+        { currency_id = 2853, stat_name = "main stat", thread_id = 219265, thread_name = "Perpetual Thread of Power", thread_count = 7 },
+        { currency_id = 2853, stat_name = "main stat", thread_id = 219274, thread_name = "Infinite Thread of Power", thread_count = 12 }
     },
 
     critical_strike = {
@@ -75,51 +76,121 @@ event_frame:RegisterEvent("CURRENCY_DISPLAY_UPDATE")
 event_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 event_frame:RegisterEvent("ADDON_LOADED")
 
-local frame = CreateFrame("Frame", "LootFrame", UIParent, "BasicFrameTemplateWithInset")
-frame:SetSize(400, 200)
-frame:SetPoint("LEFT")
-frame:SetMovable(true)
-frame:EnableMouse(true)
-frame:RegisterForDrag("LeftButton")
-frame:SetScript("OnDragStart", frame.StartMoving)
-frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+local start_time = 0
+local elapsed_paused_time = 0
+local timer_active = false
+local pause_start_time = 0
 
-frame:SetResizable(true)
+function StartTick()
+    start_time = 0
+    elapsed_paused_time = 0
+    timer_active = true
+    pause_start_time = 0
+    start_time = time()
+end
+
+function PauseTick()
+    if timer_active then
+        pause_start_time = time()
+        timer_active = false
+    end
+end
+
+function ResumeTick()
+    if not timer_active then
+        elapsed_paused_time = elapsed_paused_time + (time() - pause_start_time)
+        timer_active = true
+    end
+end
+
+function StopTick()
+    elapsed_paused_time = 0
+    timer_active = false
+    pause_start_time = 0
+end
+
+function ElapsedTick()
+    if timer_active then
+        return time() - start_time - elapsed_paused_time
+    else
+        return pause_start_time - start_time - elapsed_paused_time
+    end
+end
+local frame = AceGUI:Create("Frame")
+local function UpdateTimerDisplay(elapsedTime)
+    local seconds = math.floor(elapsedTime % 60)
+    local minutes = math.floor((elapsedTime / 60) % 60)
+    local hours = math.floor(elapsedTime / 3600)
+    frame:SetStatusText(string.format("%02d:%02d:%02d", hours, minutes, seconds))
+end
+
+
+frame:SetTitle("ThreadWatcher")
+frame:SetWidth(425)
+frame:SetHeight(200)
+frame:SetLayout("Flow")
+frame.frame:SetScript("OnUpdate", function(elapsed)
+    if timer_active == true then
+        UpdateTimerDisplay(ElapsedTick())
+    end
+end)
 frame:Hide()
 
-local MIN_WIDTH = 200
-local MIN_HEIGHT = 200
+local inlineGroup = AceGUI:Create("InlineGroup")
+inlineGroup:SetFullWidth(true)
+inlineGroup:SetFullHeight(true)
+inlineGroup:SetLayout("Flow")
 
-local resizeButton = CreateFrame("Button", nil, frame)
-resizeButton:SetSize(16, 16)
-resizeButton:SetPoint("BOTTOMRIGHT", -4, 4)
-resizeButton:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
-resizeButton:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
-resizeButton:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
-
-resizeButton:SetScript("OnMouseDown", function(self, button)
-    if button == "LeftButton" then
-        frame:StartSizing("BOTTOMRIGHT")
+local startButton = AceGUI:Create("Button")
+startButton:SetText("Start")
+startButton:SetCallback("OnClick", function()
+    if timer_active == false and start_time == 0 then
+        StartTick()
+        startButton:SetText("Pause")
+    elseif timer_active == false and start_time ~= 0 then
+        ResumeTick()
+        startButton:SetText("Pause")
+    elseif timer_active == true then
+        PauseTick()
+        startButton:SetText("Resume")
     end
 end)
-resizeButton:SetScript("OnMouseUp", function(self, button)
-    frame:StopMovingOrSizing()
-    local width, height = frame:GetSize()
-    if width < MIN_WIDTH then
-        frame:SetWidth(MIN_WIDTH)
-    end
-    if height < MIN_HEIGHT then
-        frame:SetHeight(MIN_HEIGHT)
-    end
+startButton:SetAutoWidth(true)
+frame:AddChild(startButton)
+
+
+local dump_button = AceGUI:Create("Button")
+dump_button:SetText("Dump Results")
+dump_button:SetCallback("OnClick", function() 
+    DumpThreadResults()
 end)
+dump_button:SetAutoWidth(true)
+frame:AddChild(dump_button)
 
-local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-scrollFrame:SetPoint("TOPLEFT", 10, -30)
-scrollFrame:SetPoint("BOTTOMRIGHT", -30, 50)
 
-local content = CreateFrame("Frame", nil, scrollFrame)
-content:SetSize(260, 400)
-scrollFrame:SetScrollChild(content)
+local optionsButton = AceGUI:Create("Button")
+optionsButton:SetText("Options")
+optionsButton:SetCallback("OnClick", function()
+    InterfaceOptionsFrame_OpenToCategory("ThreadWatcher")
+end)
+optionsButton:SetAutoWidth(true)
+frame:AddChild(optionsButton)
+
+
+local stopButton = AceGUI:Create("Button")
+stopButton:SetText("Stop")
+stopButton:SetCallback("OnClick", function()
+    startButton:SetText("Start")
+    DumpThreadResults()
+    StopTick()
+    lootList = {}
+    UpdateLootDisplay()
+    frame:SetStatusText("00:00:00")
+end)
+stopButton:SetAutoWidth(true)
+frame:AddChild(stopButton)
+
+frame:AddChild(inlineGroup)
 
 local lootList = {}
 
@@ -130,39 +201,25 @@ function table.empty (self)
     return true
 end
 
-
 local button_frame_pool = CreateFramePool("Button")
 local fontStringsCreated = {}
 
 local function UpdateLootDisplay()
-    button_frame_pool:ReleaseAll()
+    inlineGroup:ReleaseChildren()
+
 
     local offset = 0
     for i, loot in pairs(lootList) do
-        local lootButton = button_frame_pool:Acquire()
-        
-        lootButton:SetParent(content)
-        lootButton:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -offset)
-        lootButton:SetSize(200, 20)
-        lootButton:Show()
-
-        local lootText = fontStringsCreated[lootButton]
-        if not lootText then
-            lootText = lootButton:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-            fontStringsCreated[lootButton] = lootText
-        end
-
-        lootText:SetPoint("LEFT", lootButton, "LEFT", 5, 0)
-
-        if loot.stat_name == "Bronze" then 
+        local lootText = AceGUI:Create("Label")
+        if loot.stat_name == "Bronze" then
             lootText:SetText(loot.item_link .. " x" .. loot.amount)
-        else 
+        else
             lootText:SetText(loot.item_link .. " x" .. loot.amount .. " (+" .. loot.thread_count .. " " .. loot.stat_name .. ")")
         end
-        offset = offset + 20
-    end
+        lootText:SetFullWidth(true)
 
-    content:SetHeight(offset)
+        inlineGroup:AddChild(lootText)
+    end
 end
 
 local function AddThread(item, item_link, thread_table, quantity)
@@ -192,24 +249,6 @@ local function AddThread(item, item_link, thread_table, quantity)
     end
     UpdateLootDisplay()
 end
-
-local timerActive = false
-local elapsedTime = 0
-
-local startButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-startButton:SetPoint("BOTTOMLEFT", 10, 10)
-startButton:SetSize(80, 30)
-startButton:SetText("Start")
-startButton:SetScript("OnClick", function()
-    if timerActive == false then 
-        timerActive = true
-        startButton:SetText("Pause")
-    else
-        timerActive = false
-        startButton:SetText("Resume")
-    end
-    
-end)
 
 function TimeToString(elapsedTime)
     local seconds = math.floor(elapsedTime % 60)
@@ -269,6 +308,7 @@ function DumpThreadResults()
         end
     end
 
+    local elapsedTime = ElapsedTick()
     local seconds = math.floor(elapsedTime % 60)
     local minutes = math.floor((elapsedTime / 60) % 60)
     local hours = math.floor(elapsedTime / 3600)
@@ -300,60 +340,11 @@ function DumpThreadResults()
     end
 end
 
-local dump_button = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-dump_button:SetPoint("BOTTOM", -10, 10)
-dump_button:SetSize(100, 30)
-dump_button:SetText("Dump Results")
-dump_button:SetScript("OnClick", function() 
-    DumpThreadResults()
-end)
-
-local timerText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-timerText:SetPoint("TOP", frame, "TOP", 0, -5)
-timerText:SetText("00:00:00")
-
-local optionsButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-optionsButton:SetPoint("TOPRIGHT", -25, -1)
-optionsButton:SetSize(64, 20)
-optionsButton:SetText("Options")
-optionsButton:SetScript("OnClick", function()
-    InterfaceOptionsFrame_OpenToCategory("ThreadWatcher")
-end)
-local stopButton = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
-stopButton:SetPoint("BOTTOMRIGHT", -10, 10)
-stopButton:SetSize(80, 30)
-stopButton:SetText("Stop")
-stopButton:SetScript("OnClick", function()
-    timerActive = false 
-    startButton:SetText("Start")
-    DumpThreadResults()
-    elapsedTime = 0
-    lootList = {}
-    UpdateLootDisplay()
-    timerText:SetText("00:00:00")
-end)
-
-local function UpdateTimerDisplay(elapsedTime)
-    local seconds = math.floor(elapsedTime % 60)
-    local minutes = math.floor((elapsedTime / 60) % 60)
-    local hours = math.floor(elapsedTime / 3600)
-    timerText:SetText(string.format("%02d:%02d:%02d", hours, minutes, seconds))
-end
-
-local function OnUpdate(self, elapsed)
-    if timerActive then
-        elapsedTime = elapsedTime + elapsed
-        UpdateTimerDisplay(elapsedTime)
-    end
-end
-
-local timer_frame = CreateFrame("Frame")
-timer_frame:SetScript("OnUpdate", OnUpdate)
-
 First_open = true
 function ThreadWatcher:ThreadCommand()
     if First_open == true then
-        timerActive = true
+        StartTick()
+        startButton:SetText("Pause")
         self:Print("Session started.")
     end
     if frame:IsShown() then
@@ -365,7 +356,7 @@ function ThreadWatcher:ThreadCommand()
 end
 
 local function eventHandler(self, event, ...) 
-    if event == "CURRENCY_DISPLAY_UPDATE" and timerActive == true then 
+    if event == "CURRENCY_DISPLAY_UPDATE" and timer_active == true then 
         local currencyType, quantity, quantityChange, quantityGainSource, quantityLostSource = ...;
         for i, thread in pairs(Threads) do 
             for thread_table_name, thread_table in pairs(thread) do
@@ -393,7 +384,7 @@ local threadwatcherStub = LibStub("LibDataBroker-1.1"):NewDataObject("ThreadWatc
     OnTooltipShow = function (tooltip)
         tooltip:AddLine("ThreadWatcher")
         tooltip:AddLine("|cFFFFFF00Click|r to open the window")        
-        if timerActive ~= false then
+        if timer_active ~= false then
             local seconds = math.floor(elapsedTime % 60)
             local minutes = math.floor((elapsedTime / 60) % 60)
             local hours = math.floor(elapsedTime / 3600)
@@ -435,7 +426,7 @@ function ThreadWatcher:OnInitialize()
     self:Print("ThreadWatcher loaded! Use the minimap icon or |cFFFFFF00/threadwatcher|r to open the ThreadWatcher window!")
     if self.db.profile.start_on_launch == true then
         self:Print("Starting session.")
-        timerActive = true
+        timer_active = true
         startButton:SetText("Pause")
     end
 end
