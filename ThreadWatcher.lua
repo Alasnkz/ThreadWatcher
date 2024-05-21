@@ -1,5 +1,6 @@
 local ThreadWatcher = LibStub("AceAddon-3.0"):NewAddon("ThreadWatcher", "AceConsole-3.0")  
 local AceGUI = LibStub("AceGUI-3.0")
+local lootList = {}
 
 Threads =
 {
@@ -177,34 +178,6 @@ end)
 optionsButton:SetAutoWidth(true)
 frame:AddChild(optionsButton)
 
-
-local stopButton = AceGUI:Create("Button")
-stopButton:SetText("Stop")
-stopButton:SetCallback("OnClick", function()
-    startButton:SetText("Start")
-    DumpThreadResults()
-    StopTick()
-    lootList = {}
-    UpdateLootDisplay()
-    frame:SetStatusText("00:00:00")
-end)
-stopButton:SetAutoWidth(true)
-frame:AddChild(stopButton)
-
-frame:AddChild(inlineGroup)
-
-local lootList = {}
-
-function table.empty (self)
-    for _, _ in pairs(self) do
-        return false
-    end
-    return true
-end
-
-local button_frame_pool = CreateFramePool("Button")
-local fontStringsCreated = {}
-
 local function UpdateLootDisplay()
     inlineGroup:ReleaseChildren()
 
@@ -222,6 +195,31 @@ local function UpdateLootDisplay()
         inlineGroup:AddChild(lootText)
     end
 end
+
+local stopButton = AceGUI:Create("Button")
+stopButton:SetText("Stop")
+stopButton:SetCallback("OnClick", function()
+    startButton:SetText("Start")
+    DumpThreadResults()
+    StopTick()
+    lootList = {}
+    UpdateLootDisplay()
+    frame:SetStatusText("00:00:00")
+end)
+stopButton:SetAutoWidth(true)
+frame:AddChild(stopButton)
+
+frame:AddChild(inlineGroup)
+
+function table.empty (self)
+    for _, _ in pairs(self) do
+        return false
+    end
+    return true
+end
+
+local button_frame_pool = CreateFramePool("Button")
+local fontStringsCreated = {}
 
 local function AddThread(item, item_link, thread_table, quantity)
     -- get total thread count
