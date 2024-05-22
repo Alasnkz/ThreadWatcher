@@ -358,7 +358,7 @@ local function eventHandler(self, event, ...)
     if event == "CURRENCY_DISPLAY_UPDATE" and timer_active == true then 
         local currencyType, quantity, quantityChange, quantityGainSource, quantityLostSource = ...;
 
-        if currencyType == nil or quantityChange == nil then
+        if currencyType == nil or quantityChange == nil or quantityChange < 0 then
             return
         end
         for i, thread in pairs(Threads) do 
