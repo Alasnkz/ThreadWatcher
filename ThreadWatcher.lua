@@ -357,15 +357,40 @@ end
 local function eventHandler(self, event, ...) 
     if event == "CURRENCY_DISPLAY_UPDATE" and timer_active == true then 
         local currencyType, quantity, quantityChange, quantityGainSource, quantityLostSource = ...;
+
+        if currencyType == nil or quantityChange == nil then
+            return
+        end
         for i, thread in pairs(Threads) do 
-            for thread_table_name, thread_table in pairs(thread) do
+            for index, thread_table in pairs(thread) do
                 if thread_table.currency_id == currencyType and (thread_table.thread_count == quantityChange or thread_table.thread_count == -1) then
                     local item = Item:CreateFromItemID(thread_table.thread_id)
 
                     item:ContinueOnItemLoad(function()
                         AddThread(thread_table.thread_id, item:GetItemLink(), thread_table, quantityChange)
                     end)
-                    
+                elseif quantityChange > thread_table.thread_count and thread_table.currency_id == currencyType and index >= 4 then
+                    local remaining = quantityChange
+                    local result = {}
+
+                    table.sort(thread, function(a, b) return a.thread_count > b.thread_count end)
+
+                    for _, t in ipairs(thread) do
+                        if t.thread_count <= remaining and t.thread_count > 0 then
+                            local count = math.floor(remaining / t.thread_count)
+                            remaining = remaining - (count * t.thread_count)
+                            result[t.thread_id] = { count = count, thread_table = t }
+                        end
+                    end
+
+                    for thread_id, remain_table in pairs(result) do
+                        local item = Item:CreateFromItemID(thread_id)
+                        item:ContinueOnItemLoad(function()
+                            for _ = 1, remain_table.count do
+                                AddThread(thread_id, item:GetItemLink(), remain_table.thread_table, 1)
+                            end
+                        end)
+                    end
                 end
             end
         end
@@ -383,11 +408,16 @@ local threadwatcherStub = LibStub("LibDataBroker-1.1"):NewDataObject("ThreadWatc
     OnTooltipShow = function (tooltip)
         tooltip:AddLine("ThreadWatcher")
         tooltip:AddLine("|cFFFFFF00Click|r to open the window")        
-        if timer_active ~= false then
+        if start_time ~= 0 then
+            local elapsedTime = ElapsedTick()
             local seconds = math.floor(elapsedTime % 60)
             local minutes = math.floor((elapsedTime / 60) % 60)
             local hours = math.floor(elapsedTime / 3600)
             tooltip:AddLine(string.format("Session running for %02d:%02d:%02d", hours, minutes, seconds))
+
+            if timer_active == false then
+                tooltip:AddLine("Session is currently |cFFFF0000paused|r")
+            end 
         end
     end,  
 })  
