@@ -95,6 +95,7 @@ event_frame:RegisterEvent("CURRENCY_DISPLAY_UPDATE")
 event_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 event_frame:RegisterEvent("CHAT_MSG_LOOT")
 event_frame:RegisterEvent("ADDON_LOADED")
+event_frame:Hide()
 
 local start_time = 0
 local elapsed_paused_time = 0
@@ -551,12 +552,17 @@ local threadwatcherStub = LibStub("LibDataBroker-1.1"):NewDataObject("ThreadWatc
 	type = "launcher",  
 	text = "ThreadWatcher", 
 	icon = "Interface\\Icons\\inv_10_tailoring_embroiderythread_color1",  
-	OnClick = function()
-        ThreadWatcher:ThreadCommand()
+	OnClick = function(displayFrame, buttonName)
+        if buttonName == "RightButton" then
+            InterfaceOptionsFrame_OpenToCategory("ThreadWatcher")
+        else
+            ThreadWatcher:ThreadCommand()
+        end
     end,
     OnTooltipShow = function (tooltip)
         tooltip:AddLine("ThreadWatcher")
         tooltip:AddLine("|cFFFFFF00Click|r to open the window")        
+        tooltip:AddLine("|cFFFFFF00Right click|r to open the options window")
         if start_time ~= 0 then
             local elapsedTime = ElapsedTick()
             local seconds = math.floor(elapsedTime % 60)
@@ -747,8 +753,8 @@ function ThreadWatcher:OnInitialize()
     self.optionsFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ThreadWatcher", "ThreadWatcher")
     self:RegisterChatCommand("threadwatcher", "ThreadCommand")
     --self:RegisterChatCommand("threadtest", "ThreadTest")
-    self:RegisterChatCommand("currencytest", "CurrencyTest")
-    self:RegisterChatCommand("gemtest", "GemTest")
+    --self:RegisterChatCommand("currencytest", "CurrencyTest")
+    --self:RegisterChatCommand("gemtest", "GemTest")
     self:Print("ThreadWatcher loaded! Use the minimap icon or |cFFFFFF00/threadwatcher|r to open the ThreadWatcher window!")
     if self.db.profile.start_on_launch == true then
         self:Print("Session started.")
