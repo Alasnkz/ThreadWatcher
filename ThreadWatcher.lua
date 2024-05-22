@@ -138,10 +138,17 @@ frame.frame:SetScript("OnUpdate", function(elapsed)
 end)
 frame:Hide()
 
+local scrollFrame = AceGUI:Create("ScrollFrame")
+scrollFrame:SetFullWidth(true)
+scrollFrame:SetFullHeight(true)
+scrollFrame:SetLayout("Flow")
+
+
 local inlineGroup = AceGUI:Create("InlineGroup")
 inlineGroup:SetFullWidth(true)
 inlineGroup:SetFullHeight(true)
 inlineGroup:SetLayout("Flow")
+scrollFrame:AddChild(inlineGroup)
 
 local startButton = AceGUI:Create("Button")
 startButton:SetText("Start")
@@ -180,8 +187,6 @@ frame:AddChild(optionsButton)
 
 local function UpdateLootDisplay()
     inlineGroup:ReleaseChildren()
-
-
     local offset = 0
     for i, loot in pairs(lootList) do
         local lootText = AceGUI:Create("Label")
@@ -194,6 +199,8 @@ local function UpdateLootDisplay()
 
         inlineGroup:AddChild(lootText)
     end
+    inlineGroup:DoLayout()
+    scrollFrame:DoLayout()
 end
 
 local stopButton = AceGUI:Create("Button")
@@ -209,7 +216,7 @@ end)
 stopButton:SetAutoWidth(true)
 frame:AddChild(stopButton)
 
-frame:AddChild(inlineGroup)
+frame:AddChild(scrollFrame)
 
 function table.empty (self)
     for _, _ in pairs(self) do
@@ -274,7 +281,8 @@ function TimeToString(elapsedTime)
 end
 
 function DumpThreadResults() 
-    local most_threads = 0
+    local most_item_threads = 0
+    local most_item_stat = ""
     local total_threads = 0
     local thread_counts = {}
     local item_count = 0
@@ -295,15 +303,11 @@ function DumpThreadResults()
             if most_item < loot.amount then
                 most_item = loot.amount
                 most_item_link = loot.item_link
+                most_item_threads = loot.thread_count
+                most_item_stat = loot.stat_name
             end
         else
             bronze = loot.amount
-        end
-    end
-
-    for name, threads in pairs(thread_counts) do
-        if most_threads < threads then
-            most_threads = threads
         end
     end
 
@@ -325,7 +329,7 @@ function DumpThreadResults()
 
     if total_threads > 0 and most_item_link ~= "" then
         ThreadWatcher:Print(string.format("You have gained |cFF00FF00%i|r stat upgrades in |cFFFFFF00%s|r!", total_threads, TimeToString(elapsedTime)))
-        ThreadWatcher:Print(string.format("Your most common thread drop was %s for |cFF00FF00%i|r stat upgrades!", most_item_link, most_threads))
+        ThreadWatcher:Print(string.format("Your most common thread drop was %s for |cFF00FF00%i|r %s upgrades!", most_item_link, most_item_threads, most_item_stat))
         
         if minutes > 0 or hours > 0 then
             local threads_per_min = total_threads / minutes_conv
@@ -438,6 +442,19 @@ local options = {
 	},
 }
 
+function ThreadWatcher:ThreadTest()
+    for i, thread in pairs(Threads) do 
+        for index, thread_table in pairs(thread) do
+            print(thread)
+            local item = Item:CreateFromItemID(thread_table.thread_id)
+
+            item:ContinueOnItemLoad(function()
+                AddThread(thread_table.thread_id, item:GetItemLink(), thread_table, thread_table.thread_count)
+            end)
+        end
+    end
+end
+
 function ThreadWatcher:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New("ThreadWatcherDB", {
 		profile = {
@@ -451,7 +468,7 @@ function ThreadWatcher:OnInitialize()
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ThreadWatcher", options)
     self.optionsFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ThreadWatcher", "ThreadWatcher")
     self:RegisterChatCommand("threadwatcher", "ThreadCommand")
-
+    --self:RegisterChatCommand("threadtest", "ThreadTest")
     self:Print("ThreadWatcher loaded! Use the minimap icon or |cFFFFFF00/threadwatcher|r to open the ThreadWatcher window!")
     if self.db.profile.start_on_launch == true then
         self:Print("Starting session.")
