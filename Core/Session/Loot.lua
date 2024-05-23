@@ -129,7 +129,6 @@ function ThreadWatcher.session.loot.DumpSessionInfo()
     
             thread_counts[loot.stat_name] = loot.thread_count + thread_counts[loot.stat_name]
             total_threads = total_threads + loot.thread_count
-            ThreadWatcher:Print("loot.amount = " .. loot.amount)
             item_count = item_count + loot.amount
             if most_item < loot.amount then
                 most_item = loot.amount
