@@ -225,7 +225,5 @@ function ThreadWatcher.session.loot.DumpSessionInfo()
             local item_drops = item_count / seconds
             ThreadWatcher:Print(string.format("You gained |cFF00FF00%0.2f|r stat upgrades or |cFF00FF00%0.2f|r thread drops every second!", threads_per_sec, item_drops))
         end
-
-        ThreadWatcher:Print(item_count)
     end
 end
