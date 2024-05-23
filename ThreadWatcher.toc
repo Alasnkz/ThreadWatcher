@@ -12,4 +12,9 @@ libs/AceDB-3.0/AceDB-3.0.lua
 libs/AceConsole-3.0/AceConsole-3.0.lua
 libs/AceConfig-3.0/AceConfig-3.0.xml
 libs/AceGUI-3.0/AceGUI-3.0.xml
+
 ThreadWatcher.lua
+Core/GUI.lua
+Core/Session/Session.lua
+Core/Session/Loot.lua
+Core/EventHandler.lua
