@@ -79,7 +79,25 @@ local options = {
 			desc = "Run a session on addon startup straight away.",
 			get = "GetSessionStartup",
 			set = "SetSessionStartup",
+            order = 1,
 		},
+        new_session_each_instance = {
+            width = "full",
+            disabled = true,
+            type = "toggle",
+            name = "New session each instance",
+            desc = "Run a new session every time an instance entry is detected.\nWill automatically stop the session once out of the instance.",
+            get = "GetNewSessionInstanceToggle",
+            set = "SetNewSessionInstanceToggle"
+        },
+        toggle_round_minute = {
+            width = "full",
+            type = "toggle",
+            name = "Round to minute",
+            desc = "Set to whether round a session under 60 seconds to a minute.",
+            get = "GetRoundMinuteSetting",
+            set = "SetRoundMinuteSetting"
+        },
         bronze = {
             name = "Bronze Options",
             type = "group",
@@ -214,7 +232,10 @@ function ThreadWatcher:OnInitialize()
 			minimap = {
 				hide = false,
 			},
+            
             start_on_launch = false,
+            new_session_each_instance = false,
+            round_to_minute = true,
 
             bronze = {
                 track_bronze = true,
@@ -243,9 +264,9 @@ function ThreadWatcher:OnInitialize()
     LibStub("AceConfig-3.0"):RegisterOptionsTable("ThreadWatcher", options)
     self.optionsFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ThreadWatcher", "ThreadWatcher")
     self:RegisterChatCommand("threadwatcher", "ThreadCommand")
-    self:RegisterChatCommand("threadtest", "ThreadTest")
-    self:RegisterChatCommand("currencytest", "CurrencyTest")
-    self:RegisterChatCommand("gemtest", "GemTest")
+    --self:RegisterChatCommand("threadtest", "ThreadTest")
+    --self:RegisterChatCommand("currencytest", "CurrencyTest")
+    --self:RegisterChatCommand("gemtest", "GemTest")
     self:Print("ThreadWatcher loaded! Use the minimap icon or |cFFFFFF00/threadwatcher|r to open the ThreadWatcher window!")
     if self.db.profile.start_on_launch == true then
         ThreadWatcher.session.StartSession()
@@ -266,6 +287,24 @@ function ThreadWatcher:SetSessionStartup(info, value)
     self.db.profile.start_on_launch = value
 end
 
+
+function ThreadWatcher:GetNewSessionInstanceToggle(info)
+    return self.db.profile.new_session_each_instance
+end
+
+function ThreadWatcher:SetNewSessionInstanceToggle(info, value)
+    self.db.profile.new_session_each_instance = value
+end
+
+function ThreadWatcher:GetRoundMinuteSetting(info)
+    return self.db.profile.round_to_minute
+end
+
+function ThreadWatcher:SetRoundMinuteSetting(info, value)
+    self.db.profile.round_to_minute = value
+end
+
+---------------------------------------------- BRONZE
 function ThreadWatcher:GetBronzeTrackingSetting(info)
     return self.db.profile.bronze.track_bronze
 end

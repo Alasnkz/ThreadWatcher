@@ -203,11 +203,17 @@ function eventHandler(self, event, ...)
         elseif (itemType == "Armor" or itemType == "Weapon") and ThreadWatcher.db.profile.gear.track_gear == true then
             ProcessPlayerLoot_Gear(itemQuality, quantity)
         end
+    elseif event == "PLAYER_ENTERING_WORLD" and ThreadWatcher.db.profile.new_session_each_instance == true and IsInInstance() == true then
+        local instance_name, instanceType, difficultyID, difficultyName, maxPlayers, dynamicDifficulty, isDynamic, instanceID, instanceGroupSize, LfgDungeonID = GetInstanceInfo()
+        local difficulty_name, groupType, isHeroic, isChallengeMode, displayHeroic, displayMythic, toggleDifficultyID, isLFR, minPlayers, maxPlayers = GetDifficultyInfo(difficultyID)
+
+        -- ThreadWatcher:Print(string.format("Entering instance %s (%s)", instance_name, difficulty_name))
     end
 end
 
 local event_frame = CreateFrame("EventFrame", "ThreadWatcher")
 event_frame:RegisterEvent("CURRENCY_DISPLAY_UPDATE")
 event_frame:RegisterEvent("CHAT_MSG_LOOT")
+event_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 event_frame:SetScript("OnEvent", eventHandler)
 event_frame:Hide()

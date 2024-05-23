@@ -116,7 +116,7 @@ function ThreadWatcher.session.loot.DumpSessionInfo()
 
     -- THREAD
     for _, loot in pairs(ThreadWatcher.session.loot.loot_list) do
-        if loot.is_thread ~= true and loot.is_currency then
+        if loot.is_thread ~= true and loot.is_currency == true then
             if loot.currency_name == "Bronze" then 
                 bronze = loot.amount
             elseif loot.currency_name == "Lesser Charm of Good Fortune" then
@@ -129,6 +129,7 @@ function ThreadWatcher.session.loot.DumpSessionInfo()
     
             thread_counts[loot.stat_name] = loot.thread_count + thread_counts[loot.stat_name]
             total_threads = total_threads + loot.thread_count
+            ThreadWatcher:Print("loot.amount = " .. loot.amount)
             item_count = item_count + loot.amount
             if most_item < loot.amount then
                 most_item = loot.amount
@@ -145,6 +146,12 @@ function ThreadWatcher.session.loot.DumpSessionInfo()
     local minutes = math.floor((elapsedTime / 60) % 60)
     local hours = math.floor(elapsedTime / 3600)
     local minutes_conv = math.floor((elapsedTime / 60) % 60) + math.floor(elapsedTime / 3600) * 60 + math.floor(elapsedTime % 60 / 60)
+    
+    if seconds < 60 and minutes == 0 and ThreadWatcher.db.profile.round_to_minute == true then
+        minutes = 1
+        seconds = 0
+        minutes_conv = 1
+    end
     
 
     if bronze ~= 0 and ThreadWatcher.db.profile.bronze.dump_bronze_info == true then
@@ -215,7 +222,7 @@ function ThreadWatcher.session.loot.DumpSessionInfo()
     if total_threads > 0 and most_item_link ~= "" then
         ThreadWatcher:Print(string.format("You have gained |cFF00FF00%i|r stat upgrades in |cFFFFFF00%s|r!", total_threads, TimeToString(elapsedTime)))
         ThreadWatcher:Print(string.format("Your most common thread drop was %s for |cFF00FF00%i|r %s upgrades!", most_item_link, most_item_threads, most_item_stat))
-        
+
         if minutes > 0 or hours > 0 then
             local threads_per_min = total_threads / minutes_conv
             local item_drops = item_count / minutes_conv
