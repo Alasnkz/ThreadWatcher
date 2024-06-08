@@ -88,7 +88,7 @@ Items = {
     }
 }
 
-local function ProcessCurrencyUpdate_Thread(currencyType, quantityChange)
+local function ProcessCurrencyUpdate_Thread(currencyType, quantityChange, quantityGainSource)
     for i, thread in pairs(Threads) do 
         for index, thread_table in pairs(thread) do
             if thread_table.currency_id == currencyType and thread_table.thread_count == quantityChange then
@@ -98,6 +98,11 @@ local function ProcessCurrencyUpdate_Thread(currencyType, quantityChange)
                 end)
                 return true
             elseif quantityChange > thread_table.thread_count and thread_table.currency_id == currencyType and index >= 4 then
+                if quantityChange == 100 and currencyType == 3001 then
+                    return true
+                end
+                
+                ThreadWatcher:Print(string.format("quantity change = %i | currency type = %i | quantityGainSource = %i | index = %i", quantityChange, currencyType, quantityGainSource, index))
                 local remaining = quantityChange
                 local result = {}
 
@@ -112,6 +117,7 @@ local function ProcessCurrencyUpdate_Thread(currencyType, quantityChange)
                 end
 
                 for thread_id, remain_table in pairs(result) do
+                    
                     local item = Item:CreateFromItemID(thread_id)
                     item:ContinueOnItemLoad(function()
                         for _ = 1, remain_table.count do
@@ -173,6 +179,7 @@ end
 
 PlayerGUID = UnitGUID("player")
 function eventHandler(self, event, ...)
+    PlayerGUID = UnitGUID("player")
     local timer_active = ThreadWatcher.session.IsTimerActive()
     if event == "CURRENCY_DISPLAY_UPDATE" and timer_active == true then 
         local currencyType, quantity, quantityChange, quantityGainSource, quantityLostSource = ...;
@@ -181,7 +188,7 @@ function eventHandler(self, event, ...)
             return
         end
 
-        local thread_handled = ProcessCurrencyUpdate_Thread(currencyType, quantityChange)
+        local thread_handled = ProcessCurrencyUpdate_Thread(currencyType, quantityChange, quantityGainSource)
         if thread_handled == false then
             ProcessCurrencyUpdate_Currency(currencyType, quantityChange)
         end
@@ -194,26 +201,25 @@ function eventHandler(self, event, ...)
         end
         local number_r = string.match(text, "Hitem:(%d+)") 
         local quantity_r = string.match(text, "|rx(%d+)")
-        local item_id = number_r and tonumber(number_r) or ""
+        local item_id = number_r and tonumber(number_r) or 0
         local quantity = (quantity_r and tonumber(quantity_r)) or 1
 
         local itemName, itemLink, itemQuality, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, sellPrice, classID, subclassID, bindType, expansionID, setID, isCraftingReagent = C_Item.GetItemInfo(item_id)
         if itemType == "Gem" and ThreadWatcher.db.profile.gems.track_gems == true then
             ProcessPlayerLoot_Gem(item_id, quantity)
         elseif (itemType == "Armor" or itemType == "Weapon") and ThreadWatcher.db.profile.gear.track_gear == true then
-            ProcessPlayerLoot_Gear(itemQuality, quantity)
+            local item = Item:CreateFromItemID(item_id)
+            item:ContinueOnItemLoad(function()
+                -- This is bugged as hell, GetItemQuality doesn't actually give the proper quality, it gives rare only.
+                -- Might be because they're remix items? No clue. Neck worked before.
+                ProcessPlayerLoot_Gear(item:GetItemQuality(), quantity)
+            end)
         end
-    elseif event == "PLAYER_ENTERING_WORLD" and ThreadWatcher.db.profile.new_session_each_instance == true and IsInInstance() == true then
-        local instance_name, instanceType, difficultyID, difficultyName, maxPlayers, dynamicDifficulty, isDynamic, instanceID, instanceGroupSize, LfgDungeonID = GetInstanceInfo()
-        local difficulty_name, groupType, isHeroic, isChallengeMode, displayHeroic, displayMythic, toggleDifficultyID, isLFR, minPlayers, maxPlayers = GetDifficultyInfo(difficultyID)
-
-        -- ThreadWatcher:Print(string.format("Entering instance %s (%s)", instance_name, difficulty_name))
     end
 end
 
 local event_frame = CreateFrame("EventFrame", "ThreadWatcher")
 event_frame:RegisterEvent("CURRENCY_DISPLAY_UPDATE")
 event_frame:RegisterEvent("CHAT_MSG_LOOT")
-event_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 event_frame:SetScript("OnEvent", eventHandler)
 event_frame:Hide()
